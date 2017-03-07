@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    >
+   <Button
+       android:onClick="testOpen"
+       android:layout_width="match_parent"
+       android:layout_height="wrap_content"
+       android:text="测试打开"
+       />
+    <Button
+        android:onClick="testClose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="测试关闭"
+        />
+    <Button
+        android:onClick="x"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="xie"
+        />
+    <Button
+        android:onClick="s"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="shan"
+        />
+</LinearLayout>

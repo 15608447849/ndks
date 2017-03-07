@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.lzp.ndks">
+
+
+
+    <!-- Not granting 需要系统签名 -->
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" /> <!-- 安装app -->
+    <uses-permission android:name="android.permission.REBOOT" /> <!-- 允许程序重新启动设备 -->
+    <uses-permission android:name="android.permission.SET_TIME"/> <!-- 设置时间 -->
+    <uses-permission android:name="android.permission.DELETE_PACKAGES" /> <!-- 允许一个程序删除包 -->
+    <!-- 允许程序屏幕波或和更多常规的访问帧缓冲数据 用于屏幕截图 -->
+    <uses-permission android:name="android.permission.READ_FRAME_BUFFER" />
+    <!-- 允许一个程序清除用户设置 -->
+    <uses-permission android:name="android.permission.CLEAR_APP_USER_DATA" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" /> <!-- 允许程序读写系统安全敏感的设置项-->
+    <uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE"/> <!-- 读取外置卡 -->
+    <!-- 在SDCard中创建与删除文件权限 允许挂载和反挂载文件系统可移动存储 -->
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
+    <!-- 允许修改话机状态，如电源，人机接口等 -->
+    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
+    <!-- 权限 -->
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" /> <!-- 开机启动权限-->
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" /> <!-- 允许程序禁用键盘锁 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" /><!-- 允许程序在手机屏幕关闭后后台进程仍然运行 -->
+
+
+    <!-- 允许设置时区-->
+    <uses-permission android:name="android.permission.SET_TIME_ZONE" /> <!-- 设置时区 -->
+
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- 网络 -->
+    <uses-permission android:name="android.permission.GET_TASKS" /> <!-- 允许程序获取当前或最近运行的应用-->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" /><!-- 允许读写系统设置项 -->
+
+    <uses-permission android:name="android.permission.CLEAR_APP_CACHE" /> <!-- 允许一个程序清楚缓存从所有安装的程序在设备中 -->
+    <!-- 获取当前WiFi接入的状态以及WLAN热点的信息-->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- 允许程序改变Wi-Fi连接状态 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> <!-- 显示系统窗口-->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 允许程序访问有关GSM网络信息 -->
+
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" /> <!-- 程序修改全局音频设置 -->
+    <!-- 往SDCard写入数据权限 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity" android:process="com.lzp.ui">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service android:name=".Servers" android:process="com.lzp.cservers" />
+        <service android:name="com.wos.play.rootdir.model_monitor.soexcute.WatchServer"/>
+    </application>
+
+</manifest>
