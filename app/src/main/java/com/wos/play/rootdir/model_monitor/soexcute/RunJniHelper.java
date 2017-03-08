@@ -27,38 +27,9 @@ public class RunJniHelper {
             theInstance = new RunJniHelper();
         return theInstance;
     }
-    public native void startMservice(String srvName, String sdcard);
+    public native void startMservice(String srvName, String sdcard,String ctrl,String infos,int sleep);
     public native void stopMservice(String sdcard);
-//    //打开监听服务 -请勿修改
-    public void startWatch(Context context) {
-        //获取包名
-        String packageName = context.getPackageName();
-        String temPath = createRootPath(context);
-        String watchServerPath = packageName+"/com.wos.play.rootdir.model_monitor.soexcute.WatchServer";
-        startMservice(watchServerPath, temPath);
-    }
-    /**
-     * sd卡是否可用
-     *
-     * @return
-     */
-    private boolean isSdCardAvailable() {
-        return Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED);
-    }
-    /**
-     * 创建根缓存目录
-     *
-     * @return
-     */
-    public String createRootPath(Context context ) {
-        String cacheRootPath = "/mnt/sdcard/wosplayer";
-        if (isSdCardAvailable()) {
-            // /sdcard/Android/data/<application package>/cache
-            cacheRootPath = context.getExternalCacheDir().getPath();
-        } else {
-            // /data/data/<application package>/cache
-            cacheRootPath = context.getCacheDir().getPath();
-        }
-        return cacheRootPath;
-    }
+    public native void liveAll(String ctrl);
+    public native void killAll(String ctrl);
+
 }

@@ -14,7 +14,7 @@ import android.util.Log;
  * Created by 79306 on 2017/2/24.
  */
 public class WatchServer extends Service {
-    private static final String TAG = "守护监听";
+    private static final String TAG = "CLibs";
     @Override
     public void onCreate() {
         super.onCreate();

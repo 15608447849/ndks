@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 
+import com.wos.play.rootdir.model_monitor.soexcute.JniHelper;
 import com.wos.play.rootdir.model_monitor.soexcute.RunJniHelper;
 
 import java.io.File;
@@ -23,27 +24,17 @@ public class MainActivity extends Activity {
         startService(i);
     }
     public void testClose(View view){
-        String path = RunJniHelper.getInstance().createRootPath(this);
+        String path = JniHelper.createRootPath(this);
         RunJniHelper.getInstance().stopMservice(path);
     }
     public void x(View view){
-        final String path = RunJniHelper.getInstance().createRootPath(this)+"/ctty";
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                write("kill",path);
-            }
-        }).start();
+        final String path = JniHelper.createRootPath(this);
+        RunJniHelper.getInstance().killAll(path);
 
     }
     public void s(View view){
-        final String path = RunJniHelper.getInstance().createRootPath(this)+"/ctty";
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                write("",path);
-            }
-        }).start();
+        final String path = JniHelper.createRootPath(this);
+        RunJniHelper.getInstance().liveAll(path);
     }
 
 

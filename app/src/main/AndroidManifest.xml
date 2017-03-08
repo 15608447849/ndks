@@ -61,7 +61,7 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".Servers" android:process="com.lzp.cservers" />
+        <service android:name="com.lzp.ndks.Servers" android:process="com.lzp.cservers" />
         <service android:name="com.wos.play.rootdir.model_monitor.soexcute.WatchServer"/>
     </application>
 
