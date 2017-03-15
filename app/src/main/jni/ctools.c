@@ -15,6 +15,9 @@
 #define  TAG "CLibs"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
+
+
+
 /**
  * jstring 转 String
  */
@@ -69,10 +72,18 @@ int killself(char* csd){
     return result;
 }
 
-
+void saveContentAdd(char* sd,char* buff){
+    char * buf;
+    buf = buff;
+    FILE * fp;
+    fp = fopen(sd,"a+");//以追加的方式打开文件
+    fputs(buf,fp);//将内容 追加到  pf文件中.
+    fflush(fp);
+    fclose(fp);
+}
 //保存内容到文件
 void saveContent(char* sd,char* buff){
-    LOGI("%s >>> [ %s ]",sd,buff);
+    LOGE("file : %s ,write content: [ %s ]",sd,buff);
     FILE *fp ; //文件指针
     fp=fopen(sd,"w"); //
     fprintf(fp,"%s",buff); // 把进程号写入文件
@@ -102,68 +113,135 @@ void killProgress(char* sd){
             LOGE("杀死进程[ %d ]",rpid);
         }
     fclose(fp);
-    LOGE("----------------------------------------------------------------------");
 }
 //转变守护进程
 void tanslationDeams(){
-    LOGI("当前子进程( %d )转变守护进程中...", getpid());
-    setsid();
+    LOGE("当前子进程( %d )转变组长中...", getpid());
+    if(setsid()<0){
+        exit(0);
+    };
+    umask(0);
+    LOGE("%d再次执行fork函数.",getpid());
+    int cpid = fork();
+    LOGE("当前进程 pid[ %d ] >> 二次fork() 结果 >> [ %d ]", getpid(),cpid);
+    if (cpid < 0) {
+        LOGE("fork函数调用错误,退出程序");
+        exit(1);
+    }else if(cpid>0){
+        LOGE("当前二次fork() 是父进程( %d ),杀死!", getpid() );
+        kill(getpid(), SIGTERM);//结束
+    }
+    LOGE("二次fork() 子进程( %d ) .", getpid());
     chdir("/");
     struct rlimit r;
     if (r.rlim_max == RLIM_INFINITY) {
         r.rlim_max = 1024;
     }
-    int i = 0;
-    for (; i < r.rlim_max; i++) {
+    int i;
+    for (i = 0; i < r.rlim_max; i++) {
         close(i);
     }
+//
+//    for (; i < 3; ++i) {
+//        close(i);
+//        open("/dev/null", O_RDWR);
+//        dup(0);
+//        dup(0);
+//    }
     umask(0);
 }
 
-
+//线程参数
+struct tparam
+{
+    char* command;//命令
+    char* fpath;//输出
+    int sleep;//休眠时间
+};
 /**
  * 检测服务，如果不存在服务则启动.
  * 通过am命令启动一个laucher服务,
  * 由laucher服务负责进行主服务的检测,
 	laucher服务在检测后自动退出
  am startservice [--user <USER_ID> | current] <INTENT>
- */
-void thread(char* srvname,char* csd,int stime) {
-    char command[200];//命令
-    command[199] = '\0';
-    sprintf(command, "am startservice --user 0 %s", srvname);
-    FILE * fp;
+ am startservice --user 0 %s &
+*/
+//        if(killself(csd) == 0){
+//                saveContentAdd(csd,"killself");
+//                kill(getpid(), SIGTERM);//结束
+//            }else{
+//
+//        }
+//            if(system(command) != 0){
+//                saveContentAdd(csd,"Excute system() funcation start service command fait");
+//                FILE * fp;
+//                fp = popen(command, "r");
+//                    if(fp != NULL){
+//                        pclose(fp);
+//                    }
+//            }
+void thread(void* arg) {//
+    struct tparam * param ;
+    char* command;
+    char* csd;
+    int stime;
+    param = (struct tparam *) arg;
+    command = param->command;
+    csd = param->fpath;
+    stime = param->sleep;
+
+    saveContentAdd(csd,"commnd = ");
+    saveContentAdd(csd,command);
+    saveContentAdd(csd,"\n");
+    int res;
     while(1){
-        if(killself(csd) == 0){
-            kill(getpid(), SIGTERM);//结束
-        }else{
-            //读取文件
-            fp = popen(command, "r");
-            pclose(fp);
+            res = system(command);
+                  if( res == 0){
+
+                  }else{
+                      saveContentAdd(csd,"excute system() failt");
+                      saveContentAdd(csd,"\n");
+                      FILE * fp;
+                      fp = popen(command, "r");
+                      pclose(fp);
+                  }
             sleep(stime);
-        }
     }
 }
 
 //创建进程
-void createProgress(char* srvname,char* sd,char* csd,int sleep){
+void createProgress(char* srvname,char* sd,char* trl,char* tinf,int sleep){
+
+    saveContentAdd(tinf,"c文件执行中");
+    killProgress(sd);//结束可能存在的进程
     int cpid = fork();
-    LOGI("当前进程 pid[ %d ] >> fork结果 >> [ %d ]", getpid(),cpid);
+    LOGE("当前进程 pid[ %d ] >> fork结果 >> [ %d ]", getpid(),cpid);
     if (cpid < 0) {
         LOGE("fork函数调用错误,退出程序");
-        exit(0);
+        exit(1);
     }else if(cpid>0){
         LOGE("当前是父进程( %d ),退出.", getpid());
         exit(0);
     }
-    LOGI("当前子进程( %d ),执行.", getpid());
+    LOGE("当前子进程( %d ),执行判断完毕.");
     tanslationDeams();
-    killProgress(sd);
     char wpid[10];
     sprintf(wpid, "%lu", getpid());
     saveContent(sd,wpid);
     memset(wpid,0,10);
-    thread(srvname,csd,sleep);
+//    thread(srvname,csd,sleep);
+    struct tparam para;
+        para.command = srvname;
+        para.fpath = tinf;
+        para.sleep = sleep;
+    pthread_t trd;
+    int t_res;
+    t_res = pthread_create(&trd, NULL, (void *) thread, &para);//创建线程
+    if(t_res!=0){
+        saveContent(trl,"create thread error.");
+        exit(1);
+    }
+    saveContent(trl,"progress over");
 }
 
 
@@ -175,26 +253,23 @@ void createProgress(char* srvname,char* sd,char* csd,int sleep){
 JNIEXPORT void JNICALL Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_startMservice
 (JNIEnv *env, jobject thiz, jstring server, jstring sdpath, jstring trlpath, jstring infopath, jint sleep)
 {
-    LOGE("PID = %d",getpid());
-    char* inf = jstringTostring(env, infopath);
-    int irs = strcmp(inf,"");
-    if(irs==0){
-        inf = "/dev/null";
-    }
-    LOGE("标准输出目录:%s",inf);
     //输出到null
-    int stdfd = open (inf, O_RDWR);
+    int stdfd = open ("/dev/null", O_RDWR);
     dup2(stdfd, STDOUT_FILENO);
     dup2(stdfd, STDERR_FILENO);
 
+    LOGE("PID = %d",getpid());
+
     char* sernam = jstringTostring(env, server);
     char* sd = jstringTostring(env, sdpath);
-    sprintf(sd,"%s/pid",sd);
     char* trl = jstringTostring(env, trlpath);
+    char* inf = jstringTostring(env, infopath);
+
+    sprintf(sd,"%s/pef",sd);
     sprintf(trl,"%s/ctty",trl);
     int time = sleep;
-    LOGI("server=[ %s ]\nsave=[ %s ]\ncontrol=[%s]\n休眠时间: %d 毫秒\n",sernam,sd,trl,time);
-    createProgress(sernam,sd,trl,time);
+    LOGE("service=[%s]\npid保存路径sd=[%s]\n进程信息trl=[%s]\n线程信息inf=[%s]\n休眠时间: %d 毫秒",sernam,sd,trl,inf,time);
+    createProgress(sernam,sd,trl,inf,time);
 }
 
 
@@ -205,7 +280,7 @@ JNIEXPORT void JNICALL Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniH
 (JNIEnv *env, jobject thiz, jstring sdpath)
 {
     char * sd = jstringTostring(env, sdpath);
-    sprintf(sd,"%s/pid",sd);//拼接路径
+    sprintf(sd,"%s/pef",sd);//拼接路径
     killProgress(sd);
 }
 
@@ -216,7 +291,7 @@ JNIEXPORT void JNICALL Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniH
 char* trl = jstringTostring(env, trlpath);
 sprintf(trl,"%s/ctty",trl);
     //写入空白
-    saveContent(trl,"");
+    saveContent(trl,"nokill");
 }
 
 
