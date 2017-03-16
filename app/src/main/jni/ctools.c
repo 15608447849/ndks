@@ -16,8 +16,9 @@
 #define  TAG "CLibs"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
-#define  FFPID "%s/c_nunber"
-#define  CONTROL "%s/cys"
+#define  PIDFILE "/mnt/sdcard/pfile"
+#define  CONTROL_FILE "/mnt/sdcard/control"
+#define  LOG_FILE "/mnt/sdcard/clog"
 
 //线程参数
 struct tparam {
@@ -286,9 +287,8 @@ Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_stopMservice
 jobject thiz, jstring
 sdpath)
 {
-char *sd = jstringTostring(env, sdpath);
-sprintf(sd,FFPID,sd);//拼接路径
-killProgress(sd);
+
+killProgress(PIDFILE);
 }
 //允许打开
 JNIEXPORT void JNICALL
@@ -297,9 +297,7 @@ Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_liveAll
 *env,
 jobject thiz, jstring
 trlpath){
-char* trl = jstringTostring(env, trlpath);
-sprintf(trl,CONTROL,trl);
-save_content(trl,"");
+save_content(CONTROL_FILE,"");
 }
 // 关闭所有
 JNIEXPORT void JNICALL
@@ -308,10 +306,8 @@ Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_killAll
 *env,
 jobject thiz, jstring
 trlpath){
-char* trl = jstringTostring(env, trlpath);
-sprintf(trl,CONTROL,trl);
 //写入 kill
-save_content(trl,"kill");
+save_content(CONTROL_FILE,"kill");
 }
 /**
  *
@@ -330,18 +326,8 @@ sleep)
 {
 char* sernam = jstringTostring(env, server);//实时监听的服务名
 char* activity = jstringTostring(env, sdpath);//打开的activity命令
-char* path = jstringTostring(env, trlpath);
-char* inf = jstringTostring(env, infopath);
 int time = sleep;
-LOGE("%s\n%s\n%s\n%s\n",sernam,activity,path,inf);
-
-
-char tme[20];
-memset(tme,0,sizeof(tme));
-strcpy(tme,path);//C语言标准库函数，将第二个参数的内容复制到第一个参数;
-sprintf(tme,CONTROL,tme); //控制文件
-sprintf(path,FFPID,path); //PID保存
-createProgress(sernam,activity,path,tme,"/mnt/sdcard/clog",time);
+createProgress(sernam,activity,PIDFILE,CONTROL_FILE,LOG_FILE,time);
 }
 
 
@@ -427,3 +413,10 @@ createProgress(sernam,activity,path,tme,"/mnt/sdcard/clog",time);
 //        //写入日志
 //        exit(1);
 //    }
+
+
+//char tme[20];
+//memset(tme,0,sizeof(tme));
+//strcpy(tme,path);//C语言标准库函数，将第二个参数的内容复制到第一个参数;
+//sprintf(tme,CONTROL,tme); //控制文件
+//sprintf(path,FFPID,path); //PID保存
