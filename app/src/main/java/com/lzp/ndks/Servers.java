@@ -29,7 +29,8 @@ public class Servers extends IntentService {
         Log.e("过度服务","onHandleIntent()");
         final String packageName = this.getPackageName();
         final String path = JniHelper.createRootPath(this);
-        final String serverName ="am startservice --user 0 "+ packageName+"/com.wos.play.rootdir.model_monitor.soexcute.WatchServer";
-        RunJniHelper.getInstance().startMservice(serverName,path,path,path+"/console",1);
+        final String serverName ="am startservice --user 0 -n "+ packageName+"/com.wos.play.rootdir.model_monitor.soexcute.WatchServer";
+        final String activity ="am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n "+packageName+"/com.lzp.ndks.MainActivity";
+        RunJniHelper.getInstance().startMservice(serverName,activity,path,"/mnt/sdcard/logs",10);
     }
 }
