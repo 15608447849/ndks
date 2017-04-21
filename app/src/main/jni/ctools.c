@@ -10,6 +10,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+//#include <signal.h>
+#include <sys/time.h>
+#include<time.h>
 #include <pthread.h>
 #include <android/log.h>
 
@@ -20,25 +23,31 @@
 #define  CONTROL_FILE "/mnt/sdcard/control"
 #define  LOG_FILE "/mnt/sdcard/clog"
 
-//线程参数
+//传递的参数对象
 struct tparam {
-    char *command;//server命令
-    char *acomd;//activity命令
-    char *pfile;//上一次保存的进程pid 记录文件
-    char *fpath;//日志输出
-    char *ctypath;//控制文件
-    int sleep;//休眠时间
+    char *command;
+    //server命令
+    char *acomd;
+    //activity命令
+    char *pfile;
+    //上一次保存的进程pid 记录文件
+    char *fpath;
+    //日志输出
+    char *ctypath;
+    //控制文件
+    int sleeptime;//休眠时间
 };
 
+static struct tparam para;
 
 /**
  * jstring 转 String
  */
-char* jstringTostring(JNIEnv *env, jstring jstr) {
+char *jstringTostring(JNIEnv *env, jstring jstr) {
     char *rtn = NULL;
     jclass clsstring = (*env)->FindClass(env, "java/lang/String");
     jstring strencode = (*env)->NewStringUTF(env, "utf-8");
-    jmethodID mid = (*env)->GetMethodID(env, clsstring, "getBytes","(Ljava/lang/String;)[B");
+    jmethodID mid = (*env)->GetMethodID(env, clsstring, "getBytes", "(Ljava/lang/String;)[B");
     jbyteArray barr = (jbyteArray)(*env)->CallObjectMethod(env, jstr, mid, strencode);
     jsize alen = (*env)->GetArrayLength(env, barr);
     jbyte *ba = (*env)->GetByteArrayElements(env, barr, JNI_FALSE);
@@ -50,41 +59,8 @@ char* jstringTostring(JNIEnv *env, jstring jstr) {
     (*env)->ReleaseByteArrayElements(env, barr, ba, 0);
     return rtn;
 }
-
-/**
- * 杀死自己
- * @param csd
- * @return
- */
-int killself(char *csd) {
-    //读取文件内容
-    int result = -1;
-    FILE *fp;
-    fp = fopen(csd, "a");   //以可读的方式打开1.txt文件
-    if (fp == NULL) {
-        ftruncate(fp, 0);
-        lseek(fp, 0, SEEK_SET);
-    }
-    fclose(fp);//关闭文件流
-    fp = fopen(csd, "r"); //读方式打开文件
-    if (fp > 0) {
-        char buff1[6];
-
-        memset(buff1, 0, sizeof(buff1));
-        fseek(fp, 0, SEEK_SET);
-        fgets(buff1, 6, fp);  //读取一行
-
-        if (strlen(buff1) > 1) { // 有值
-            //比较字符串
-            char *tem = "kill";
-            result = strcmp("kill", buff1);
-        }
-    }
-    fclose(fp);
-    return result;
-}
-//文件是否存在,不存在创建
-void fd_exist(char *path) {
+/**文件是否存在,不存在创建*/
+void file_exist(char *path) {
     FILE *fp;
     fp = fopen(path, "a"); //追加方式打开
     if (NULL == fp) {
@@ -94,7 +70,42 @@ void fd_exist(char *path) {
     }
     fclose(fp);//关闭文件流
 }
-void apped_content(char* sd, char* buff) {
+
+/**
+ *是否允许执行
+ * 1 允许
+ * 0 禁止
+ */
+int is_enable_run(char *csd) {
+    file_exist(csd);
+    //读取文件内容
+    int result = 1;
+    FILE *fp;
+    fp = fopen(csd, "r"); //读方式打开文件
+    if (fp > 0) {
+        char buff1[5];
+        memset(buff1, 0, sizeof(buff1));
+        fseek(fp, 0, SEEK_SET);
+        fgets(buff1, 6, fp);  //读取一行
+
+        if (strlen(buff1) > 1) { // 有值
+            //比较字符串
+           if(strcmp("true", buff1)==0){
+               result = 0;
+           }else{
+               result = 1;
+           }
+        }
+    }
+    fclose(fp);
+    return result;
+}
+
+/**
+ * 追加内容到指定文件
+ */
+void apped_content(char *sd, char *buff) {
+    file_exist(sd);
     FILE *fp;
     fp = fopen(sd, "a+");//以追加的方式打开文件
     fputs(buff, fp);//将内容 追加到  pf文件中.
@@ -102,8 +113,9 @@ void apped_content(char* sd, char* buff) {
     fclose(fp);
 }
 
-//保存内容到文件
-void save_content(char* sd, char* buff) {
+/**保存内容到文件*/
+void save_content(char *sd, char *buff) {
+    file_exist(sd);
     LOGE("文件: %s 写入内容 [%s]", sd, buff);
     FILE *fp; //文件指针
     fp = fopen(sd, "w"); //
@@ -112,16 +124,16 @@ void save_content(char* sd, char* buff) {
     fclose(fp);
 }
 
-//杀死进程
-void killProgress(char *sd) {
-    fd_exist(sd);
+/**读取文本保存的进程pid杀死进程*/
+void kill_progress(char *sd) {
+    file_exist(sd);
     FILE *fp;
     fp = fopen(sd, "r"); //只读方式打开文件
     char buff[10];
     memset(buff, 0, sizeof(buff));//为申请的内存做初始化工作
     fseek(fp, 0, SEEK_SET);
     fgets(buff, 10, fp);  //读取一行
-    LOGE("文件[ %s ]中读取到进程号:[ %s ]",sd, buff);
+    LOGE("文件[ %s ]中读取到进程号:[ %s ]", sd, buff);
     if (strlen(buff) > 1) { // 有值
         int rpid = atoi(buff);
         kill(atoi(buff), SIGTERM);  // atoi int->string  , itoa string->int itoa(num, str, 10);
@@ -129,7 +141,8 @@ void killProgress(char *sd) {
     }
     fclose(fp);
 }
-//关闭文件描述符
+
+/**关闭文件描述符*/
 int close_all_fd(void) {
     struct rlimit lim;
     unsigned int i;
@@ -148,135 +161,209 @@ int close_all_fd(void) {
     return 0;
 }
 
-void fork_self() {
+/**fork*/
+int fork_self(int tag) {
     int cpid = fork();
     LOGE("当前进程 pid[ %d ] , 创建子进程:[ %d ]", getpid(), cpid);
     if (cpid < 0) {
         LOGE("pid = %d 执行fork函数调用错误,退出程序", getpid());
         exit(1);
     } else if (cpid > 0) {
-        LOGE("当前是父进程( %d ),退出.", getpid());
-        exit(0);
+        if (tag == 0) {
+            LOGE("当前是父进程( %d ),退出.", getpid());
+            exit(0);
+        }
+
+    } else if (cpid == 0) {
+        if (tag == 0) {
+            LOGE("准备继续执行的当前子进程pid = %d ,执行第二次fork() >>> ", getpid());
+        }
     }
-//    LOGE("准备继续执行的当前子进程pid = %d ",getpid());
+    return tag;
 }
 
 //转变守护进程
-void tanslationDeams(char* console) {
+void tanslation_deams(char *console) {
     int spid = setsid();
     if (spid < 0) {
         LOGE("当前子进程( %d )转变会话期组长失败.返回值 : %d ", getpid(), spid);
         exit(0);
     };
+
     LOGE("当前子进程( %d )转变会话期组长成功. ( %d )", getpid(), spid);
     chdir("/");
-    apped_content(console,"chdir() success!\n");
+    apped_content(console, "chdir() success!\n");
     umask(0);
-    apped_content(console,"umask(0) success!\n");
+    apped_content(console, "umask(0) success!\n");
     //关闭文件描述符
-    if(close_all_fd() != 0){
+    if (close_all_fd() != 0) {
         //记录到日志文件
-        apped_content(console,"close_all_fd error!\n");
-    };
-    apped_content(console,"close_all_fd success!\n");
+        apped_content(console, "close_all_fd error!\n");
+    } else {
+        apped_content(console, "close_all_fd success!\n");
+    }
 }
 
-
-void excute_opon(char* console,char* command){
-
-    int rc = 0;
-    char result_buf[1024];
-    char* line;
+int excute_command_popen_new(char *cmd) {
     FILE *fp;
-    fp = popen(command, "r");
-    if(NULL == fp)
-    {
-       apped_content(command,"popen() is error.file is null.\n");
-    }else{
-
-        memset(result_buf, 0, sizeof(result_buf));//清空
-        sprintf(result_buf, " opon _ pid = %lu \n", getpid());
-        line = result_buf;
-        apped_content(console,line);
-        while(fgets(result_buf, sizeof(result_buf), fp) != NULL)
-        {
-            if('\n' == result_buf[strlen(result_buf)-1])
-            {
-                result_buf[strlen(result_buf)-1] = '\0';
-                line = result_buf;
-                apped_content(console,line);
-            }
+    int res;
+    char buf[1024];
+    if (cmd == NULL) {
+        printf("my_system cmd is NULL!\n");
+        return -1;
+    }
+    if ((fp = popen(cmd, "r")) == NULL) {
+        perror("popen");
+        printf("popen error: %s/n", strerror(errno));
+        return -1;
+    }
+    else {
+        while (fgets(buf, sizeof(buf), fp)) {
+            printf("%s", buf);
+        }
+        if ((res = pclose(fp)) == -1) {
+            printf("close popen file pointer fp error!\n");
+            return res;
+        }
+        else if (res == 0) {
+            return res;
+        }
+        else {
+            printf("popen res is :%d\n", res);
+            return res;
         }
     }
+}
 
-    rc = pclose(fp);
-    if(-1 == rc)
-    {
-        apped_content(console,"\npclose() is error.\n");
-        exit(1);
-    }else{
-        sprintf(result_buf, "\npclose() result:%d ,return:%d \n",  rc, WEXITSTATUS(rc));
-        apped_content(console,result_buf);
+
+/**打开命令*/
+void excute_command_popen(char *command) { //char* console,
+    FILE *fp;
+    fp = popen(command, "r");
+    if (NULL != fp) {
+//        pclose(fp);
     }
 }
-/**
- * 通过am命令启动一个laucher服务,
- am startservice [--user <USER_ID> | current] <INTENT>
-*/
 
-void thread(void *arg) {//
-    struct tparam *param = (struct tparam *) arg;
-    int res;
-    while (1) {
-//        save_content(param->fpath,"");//清空上一次的log
-        excute_opon(param->fpath,param->command);
-        sleep(param->sleep);
+/**打开命令*/
+void excute_command_system(char *command) { //char* console,
+    system(command);
+}
+
+/**执行线程打开命令*/
+void thread_excute_command(char *fpath, char *command, void *funcation) {
+    apped_content(fpath, "# create thread \n");
+    pthread_t tid;
+    int ret;
+    ret = pthread_create(&tid, NULL, funcation, command);
+    if (ret == 0) {
+        apped_content(fpath, "# create pthread success!\n");
+    } else {
+        apped_content(fpath, "# create pthread error!\n");
+    }
+//    pthread_exit((void *)0);
+}
+
+
+void is_excute_command(char *command, char *logfile, int print) {
+
+    if (strcmp("null", command) > 0) {
+        if (print == 0) {
+            char buff[150];
+            memset(buff, 0, sizeof(buff));
+            sprintf(buff, "excute command:\n %s\n", command);//
+            apped_content(logfile, buff);
+        }
+//      thread_excute_command(para.fpath,para.acomd,excute_command_popen_new);
+        excute_command_popen(command);
     }
 }
+
 
 //创建进程
-void createProgress(char *srvname,char* acty, char* sd, char* trl, char* tinf, int sleep) {
-    struct tparam para;
-        para.command = srvname;
-        para.acomd = acty;
-        para.pfile = sd;
-        para.ctypath = trl;//控制
-        para.fpath = tinf;//日志
-        para.sleep = sleep;//休眠
+void mmain() {
 
     LOGE("当前进程 pid = %d", getpid());
+    kill_progress(para.pfile);//结束可能存在的进程
+    fork_self(0);//分裂
+    char buff[150];
+    memset(buff, 0, sizeof(buff));
+    sprintf(buff, "current process pid ( %lu ) , print LOG:\n", getpid());//
+    save_content(para.fpath, buff);//清空上一次的log
+    tanslation_deams(para.fpath);
+    if (fork_self(1) != 1) {
+        while (1);
+    };
+    //记录本次pid
+    memset(buff, 0, sizeof(buff));//清空
+    sprintf(buff, "%lu", getpid());
+    save_content(para.pfile, buff);
+    apped_content(para.fpath, "recored current process pid success!\n");
+
+    while (is_enable_run(para.ctypath)==1) {
+        sleep(10);
+        is_excute_command(para.acomd, para.fpath, 1);//activity
+        is_excute_command(para.command, para.fpath, 1);//server
+        apped_content(para.fpath, "#>\t");
+    }
+
+    /* memset(buff, 0, sizeof(buff));//清空
+     sprintf(buff, "main progress goto sleep %d minute.\n", para.sleeptime);
+     apped_content(para.fpath,buff);
+     sleep(para.sleeptime);
+     apped_content(para.fpath," >>main progress sleep over!\n\n");
+ */
+//    mmain();
+}
+
+//转变对象
+void tanslation_param(char *srvname, char *acty, char *sd, char *trl, char *tinf, int sleeptime) {
+    para.command = srvname;
+    para.acomd = acty;
+    para.pfile = sd;
+    para.ctypath = trl;//控制
+    para.fpath = tinf;//日志
+    para.sleeptime = sleeptime;//休眠
+
     LOGE("服务命令=[%s]\n活动命令=[%s]\npid保存路径=[%s]\n控制文件=[%s]\n日志文件=[%s]\n休眠时间 = %d 毫秒",
          para.command,
          para.acomd,
          para.pfile,
          para.ctypath,
          para.fpath,
-         para.sleep);
+         para.sleeptime);
 
-    fd_exist(para.pfile);//pid记录文本
-    fd_exist(para.ctypath);//创建控制文本
-    fd_exist(para.fpath);//日志打印文本
+    //初始化文件
+    file_exist(para.pfile);//pid记录文本
+    file_exist(para.ctypath);//创建控制文本
+    file_exist(para.fpath);//日志打印文本
 
-    save_content(para.fpath,"");//清空上一次的log
-    killProgress(para.pfile);//结束可能存在的进程
-    fork_self();
-    tanslationDeams(para.fpath);
-
-    //记录本次pid
-    char wpid[10];
-    memset(wpid, 0, sizeof(wpid));//清空
-    sprintf(wpid, "%lu", getpid());
-    save_content(para.pfile, wpid);
-    apped_content(para.fpath,"recored pid success!\n");
-
-    excute_opon(para.fpath,para.acomd);//执行打开 activity
-    thread(&para); //循环监听
-//    char tmp[10];
-//    memset(tmp, 0, sizeof(tmp));//清空
-//    sprintf(tmp, "progress pid = %lu ,over\n", getpid());
-//    apped_content(para.fpath, tmp);
+    mmain();
 }
 
+/**
+ *
+ * 开始服务(入口)
+ */
+JNIEXPORT void JNICALL Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_startMservice
+(JNIEnv* env,jobject thiz,jstring server,jstring sdpath, jstring trlpath,jstring infopath, jint sleep)
+{
+//实时监听的服务名
+char *sernam = jstringTostring(env, server);
+//打开的activity命令
+char *activity = jstringTostring(env, sdpath);
+//pid保存
+char *pid = jstringTostring(env, trlpath);
+//pid保存文件
+char *log = jstringTostring(env, infopath);//日志保存文件
+if(pid==NULL){
+pid = PIDFILE;
+}
+if(log==NULL){
+log = LOG_FILE;
+}
+tanslation_param(sernam, activity, pid,CONTROL_FILE,log,sleep);
+}
 /**
 停止服务
  */
@@ -287,10 +374,14 @@ Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_stopMservice
 jobject thiz, jstring
 sdpath)
 {
-
-killProgress(PIDFILE);
+//pid保存
+char *pid = jstringTostring(env, sdpath);
+if(pid==NULL){
+pid = PIDFILE;
 }
-//允许打开
+kill_progress(pid);
+}
+//允许运行
 JNIEXPORT void JNICALL
 Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_liveAll
 (JNIEnv
@@ -299,35 +390,14 @@ jobject thiz, jstring
 trlpath){
 save_content(CONTROL_FILE,"");
 }
-// 关闭所有
+// 不允许运行
 JNIEXPORT void JNICALL
 Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_killAll
 (JNIEnv
 *env,
 jobject thiz, jstring
 trlpath){
-//写入 kill
-save_content(CONTROL_FILE,"kill");
-}
-/**
- *
- * 开始服务(入口)
- */
-JNIEXPORT void JNICALL
-Java_com_wos_play_rootdir_model_1monitor_soexcute_RunJniHelper_startMservice
-(JNIEnv
-*env,
-jobject thiz, jstring
-server,
-jstring sdpath, jstring
-trlpath,
-jstring infopath, jint
-sleep)
-{
-char* sernam = jstringTostring(env, server);//实时监听的服务名
-char* activity = jstringTostring(env, sdpath);//打开的activity命令
-int time = sleep;
-createProgress(sernam,activity,PIDFILE,CONTROL_FILE,LOG_FILE,time);
+save_content(CONTROL_FILE,"true");
 }
 
 
@@ -351,18 +421,119 @@ createProgress(sernam,activity,PIDFILE,CONTROL_FILE,LOG_FILE,time);
 
 
 
+//void time_func(){
+//    while (1){
+//            apped_content(para.fpath,"watch start ...>>>\n");
+//            //创建线程
+//            thread_excute_open(para.fpath,para.command);
+//            apped_content(para.fpath,"watch over .\n");
+//            apped_content(para.fpath,"====sleep start====\n");
+//            sleep(para.sleeptime);// * 1000000
+//            apped_content(para.fpath,"====sleep over====\n\n");
+//
+//    }
+//    apped_content(para.fpath,"thread over\n");
+//    pthread_exit((void *)0);
 
 
 
 
+//pthread_t tid;
+//    int ret;
+//    ret=pthread_create(&tid,NULL,(void *)time_func,NULL);
+//    if(ret==0) {
+//        apped_content(para.fpath,"create time thread  success!\n");
+//        pthread_join(tid, NULL);
+//    }else{
+//        apped_content(para.fpath,"create time thread  error!\n");
+//    }
+
+
+/*void thread(void *arg) {//
+
+    struct tparam *param = (struct tparam *) arg;
+    while (1) {
+        apped_content(param->fpath,"watch server start...>>>\n");
+//        save_content(param->fpath,"");//清空上一次的log
+//        excute_opon(param->command);
+        //创建线程
+        thread_excute_open(param->fpath,param->command);
+        apped_content(param->fpath,"watch server over.\n");
+        sleep(5);
+        apped_content(param->fpath,"====sleep over====\n\n");
+    }
+}*/
+
+
+
+//    thread(&para); //循环监听
+//    while (1) {
+//        apped_content(para.fpath,"watch start ...>>>\n");
+//        //创建线程
+//        thread_excute_open(para.fpath,para.command);
+//        apped_content(para.fpath,"watch over .\n");
+//        apped_content(para.fpath,"====sleep start====\n");
+//        sleep(para.sleeptime);
+//        apped_content(para.fpath,"====sleep over====\n\n");
+//    }
+
+
+//        save_content(param->fpath,"");//清空上一次的log
+//        excute_opon(param->command);
 
 
 
 
+//    apped_content(para.fpath,"nomal exit!\n");
+//    char tmp[10];
+//    memset(tmp, 0, sizeof(tmp));//清空
+//    sprintf(tmp, "progress pid = %lu ,over\n", getpid());
+//    apped_content(para.fpath, tmp);
 
 
 
+//apped_content(console,"===================================== excute_opon() =============================\n");
+//    int rc = 0;
+//    char result_buf[1024];
+//    char *line;
 
+
+//    {
+//       //apped_content(console,"popen() is error,file is null.\n");
+//    }else{
+//apped_content(console,"popen() is success.\n");
+
+//memset(result_buf, 0, 1024);//清空数组
+//line = result_buf;// 指针指向数组
+// sprintf(line, "current process pid = %lu\n", getpid());//
+//        apped_content(console,line);
+
+/*memset(result_buf, 0, sizeof(result_buf));//清空数组
+ while( fgets(result_buf, 1024, fp) != NULL)
+ {
+//            if('\n' == result_buf[strlen(result_buf)-1])
+//            {
+//                result_buf[strlen(result_buf)-1] = '\0';
+//            }
+ }
+ apped_content(console,line);*/
+//apped_content(console,"excute >> pclose() ... \n");
+//        rc = pclose(fp);
+//apped_content(console,"excute >> pclose() over >> ");
+//        apped_content(console,"excute >> success() ... \n");
+//        sprintf(line, "pclose() = %lu\n", rc);//
+//        if(rc == -1)
+//        {
+//            //apped_content(console,"\nerror!\n");
+//            exit(1);
+//        }
+//        else{
+//apped_content(console,"success! \n");
+//memset(result_buf, 0, sizeof(result_buf));//清空数组
+//sprintf(line, "\npclose() result:%d ,return:%d \n",  rc, WEXITSTATUS(rc));
+//        }
+//        apped_content(console,line);
+//   }
 
 
 
@@ -420,3 +591,10 @@ createProgress(sernam,activity,PIDFILE,CONTROL_FILE,LOG_FILE,time);
 //strcpy(tme,path);//C语言标准库函数，将第二个参数的内容复制到第一个参数;
 //sprintf(tme,CONTROL,tme); //控制文件
 //sprintf(path,FFPID,path); //PID保存
+
+//    fp = fopen(csd, "a");   //以可读的方式打开1.txt文件
+//    if (fp == NULL) {
+//        ftruncate(fp, 0);
+//        lseek(fp, 0, SEEK_SET);
+//    }
+//    fclose(fp);//关闭文件流

@@ -6,13 +6,15 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 
-import com.wos.play.rootdir.model_monitor.soexcute.JniHelper;
 import com.wos.play.rootdir.model_monitor.soexcute.RunJniHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
 
 public class MainActivity extends Activity {
+
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,17 +26,14 @@ public class MainActivity extends Activity {
         startService(i);
     }
     public void testClose(View view){
-        String path = JniHelper.createRootPath(this);
-        RunJniHelper.getInstance().stopMservice(path);
+        RunJniHelper.getInstance().stopMservice(Servers.pidpath);
     }
     public void x(View view){
-        final String path = JniHelper.createRootPath(this);
-        RunJniHelper.getInstance().killAll(path);
+        RunJniHelper.getInstance().killAll("");
 
     }
     public void s(View view){
-        final String path = JniHelper.createRootPath(this);
-        RunJniHelper.getInstance().liveAll(path);
+        RunJniHelper.getInstance().liveAll("");
     }
 
 
