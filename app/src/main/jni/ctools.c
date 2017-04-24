@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/resource.h>
+//#include <signal.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-//#include <signal.h>
+#include <sys/resource.h>
 #include <sys/time.h>
 #include<time.h>
 #include <pthread.h>
@@ -116,7 +116,7 @@ void apped_content(char *sd, char *buff) {
 /**保存内容到文件*/
 void save_content(char *sd, char *buff) {
     file_exist(sd);
-    LOGE("文件: %s 写入内容 [%s]", sd, buff);
+    LOGE("文件: %s 写入内容 : %s", sd, buff);
     FILE *fp; //文件指针
     fp = fopen(sd, "w"); //
     fprintf(fp, "%s", buff); // 把进程号写入文件
@@ -163,45 +163,59 @@ int close_all_fd(void) {
 
 /**fork*/
 int fork_self(int tag) {
+//    LOGE("fork()...tag:%d", tag);
     int cpid = fork();
-    LOGE("当前进程 pid[ %d ] , 创建子进程:[ %d ]", getpid(), cpid);
+    if(tag==0){
+        LOGE("进程 pid[ %d ] => 创建子进程:[ %d ]", getpid(), cpid);
+    }
     if (cpid < 0) {
-        LOGE("pid = %d 执行fork函数调用错误,退出程序", getpid());
+        if(tag==0){
+            LOGE("pid = %d 执行fork函数调用错误,退出程序", getpid());
+        }
         exit(1);
+
     } else if (cpid > 0) {
         if (tag == 0) {
-            LOGE("当前是父进程( %d ),退出.", getpid());
+
+            //LOGE("父进程( %d ),等待子进程执行.", getpid());
+            //wait(NULL);
+            LOGE("父进程( %d ),退出.", getpid());
             exit(0);
+        }else{
+            return cpid;
         }
 
     } else if (cpid == 0) {
         if (tag == 0) {
-            LOGE("准备继续执行的当前子进程pid = %d ,执行第二次fork() >>> ", getpid());
+            LOGE("当前子进程pid = %d ,准备脱离会话组 ...  \n\n", getpid());
         }
+        return tag;
     }
-    return tag;
+    return -1;
 }
 
 //转变守护进程
-void tanslation_deams(char *console) {
+int tanslation_deams(char *console) {
+    char buff[20];
     int spid = setsid();
+    memset(buff, 0, sizeof(buff));
+    sprintf(buff, "current process pid ( %lu ) setpid() result = %d \n", getpid(),spid);//
+    apped_content(console,buff);
     if (spid < 0) {
-        LOGE("当前子进程( %d )转变会话期组长失败.返回值 : %d ", getpid(), spid);
         exit(0);
     };
-
-    LOGE("当前子进程( %d )转变会话期组长成功. ( %d )", getpid(), spid);
     chdir("/");
-    apped_content(console, "chdir() success!\n");
+    apped_content(console, "chdir(/) success!\n");
     umask(0);
     apped_content(console, "umask(0) success!\n");
     //关闭文件描述符
     if (close_all_fd() != 0) {
         //记录到日志文件
-        apped_content(console, "close_all_fd error!\n");
+        apped_content(console, "close all file descriptor error!\n");
     } else {
-        apped_content(console, "close_all_fd success!\n");
+        apped_content(console, "close all file descriptor success!\n");
     }
+
 }
 
 int excute_command_popen_new(char *cmd) {
@@ -268,52 +282,153 @@ void thread_excute_command(char *fpath, char *command, void *funcation) {
 void is_excute_command(char *command, char *logfile, int print) {
 
     if (strcmp("null", command) > 0) {
+
+//      thread_excute_command(para.fpath,para.acomd,excute_command_popen_new);
+        excute_command_popen(command);
         if (print == 0) {
             char buff[150];
             memset(buff, 0, sizeof(buff));
-            sprintf(buff, "excute command:\n %s\n", command);//
+            sprintf(buff, "excute command:\t%s\tsuccess.\n", command);//
             apped_content(logfile, buff);
         }
-//      thread_excute_command(para.fpath,para.acomd,excute_command_popen_new);
-        excute_command_popen(command);
     }
 }
 
+void singnals(){
+    /*忽略终端Ｉ／Ｏ信号，ＳＴＯＰ信号*/
+//    signal(SIGTTOU ,SIG_IGN);
+//    signal(SIGTTIN ,SIG_IGN);
+//    signal(SIGTSTP ,SIG_IGN);
+//    signal(SIGHUP ,SIG_IGN);
+}
+void clear_log_file(char* path){
+    char buff[20];
+    memset(buff, 0, sizeof(buff));
+    sprintf(buff, "current process pid ( %lu ) , print log >>>\n", getpid());//
+    save_content(path, buff);//清空上一次的log
+}
+void recored_pid(char* recredfile,char* logfile){
+    char buff[35];
+    memset(buff, 0, sizeof(buff));
+    sprintf(buff, "%lu", getpid());
+    save_content(recredfile, buff);//保存pid
 
+    memset(buff, 0, sizeof(buff));//清空
+    sprintf(buff, "%d recored success, recored file path is [ %s ]\n", getpid(),recredfile);
+    apped_content(logfile,buff);
+};
 //创建进程
 void mmain() {
-
-    LOGE("当前进程 pid = %d", getpid());
+    int result = 0;
     kill_progress(para.pfile);//结束可能存在的进程
-    fork_self(0);//分裂
-    char buff[150];
-    memset(buff, 0, sizeof(buff));
-    sprintf(buff, "current process pid ( %lu ) , print LOG:\n", getpid());//
-    save_content(para.fpath, buff);//清空上一次的log
-    tanslation_deams(para.fpath);
-    if (fork_self(1) != 1) {
-        while (1);
-    };
-    //记录本次pid
-    memset(buff, 0, sizeof(buff));//清空
-    sprintf(buff, "%lu", getpid());
-    save_content(para.pfile, buff);
-    apped_content(para.fpath, "recored current process pid success!\n");
+//    clear_log_file(para.fpath);//清空日志
+    char buf[20];
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "current process pid ( %lu ) , print log >>>\n", getpid());//
+    save_content(para.fpath, buf);//清空上一次的log
 
-    while (is_enable_run(para.ctypath)==1) {
-        sleep(10);
-        is_excute_command(para.acomd, para.fpath, 1);//activity
-        is_excute_command(para.command, para.fpath, 1);//server
-        apped_content(para.fpath, "#>\t");
+    int cpid = fork();
+    LOGE("进程 pid[ %d ] => 创建子进程:[ %d ]", getpid(), cpid);
+    if (cpid < 0) {
+    LOGE("pid = %d 执行fork函数调用错误,退出程序.", getpid());
+    exit(1);
+    } else if (cpid > 0) {
+     LOGE("父进程( %d ),退出.", getpid());
+     exit(0);
+    } else if (cpid == 0) {
+     LOGE("当前子进程pid = %d ,准备脱离会话组 ...  \n\n", getpid());
     }
 
-    /* memset(buff, 0, sizeof(buff));//清空
-     sprintf(buff, "main progress goto sleep %d minute.\n", para.sleeptime);
-     apped_content(para.fpath,buff);
-     sleep(para.sleeptime);
-     apped_content(para.fpath," >>main progress sleep over!\n\n");
- */
-//    mmain();
+
+//    result = fork_self(0);//分裂1次
+//    if(result!=0)
+//        return;
+    //singnals();//忽略信号
+
+    //脱离进程组
+    char buff[20];
+    int spid = setsid();
+    memset(buff, 0, sizeof(buff));
+    sprintf(buff, "current process pid ( %lu ) ,ppid ( %lu ),setpid result = %d \n", getpid(),getppid(),spid);//
+    apped_content(para.fpath,buff);
+
+    if (spid < 0) {
+        exit(-1);
+    };
+    umask(0);
+    apped_content(para.fpath, "umask(0) success!\n");
+
+//    //关闭文件描述符
+//    if (close_all_fd() != 0) {
+//        //记录到日志文件
+//        apped_content(console, "close all file descriptor error!\n");
+//    } else {
+//        apped_content(console, "close all file descriptor success!\n");
+//    }
+
+//    tanslation_deams(para.fpath);
+    char str[30];
+    memset(str, 0, sizeof(str));//清空
+    sprintf(str, "current PID = %lu , this PPID = %lu ,read 2fork()...\n",getpid(),getppid());
+    apped_content(para.fpath,str);
+
+    //result = fork_self(1);//分裂第二次
+//    if(result<0)
+//        return;
+
+
+    result = fork();
+    if(result == 0){
+        chdir("/");
+        apped_content(para.fpath, "chdir(/) success!\n");
+
+        for (int i = 0; i < 3; i++)
+        {
+            close (i);
+        }
+        apped_content(para.fpath, "close all file descriptor over!\n");
+
+        int stdfd = open ("/dev/null", O_RDWR);
+        dup2(stdfd, STDOUT_FILENO);
+        dup2(stdfd, STDERR_FILENO);
+        apped_content(para.fpath, "singnal over!\n");
+
+        //记录本次pid
+        //recored_pid(para.pfile,para.fpath);
+        char buff1[35];
+        memset(buff1, 0, sizeof(buff1));
+        sprintf(buff1, "%lu", getpid());
+        save_content(para.pfile, buff1);//保存pid
+
+        memset(buff1, 0, sizeof(buff1));//清空
+        sprintf(buff1, "%d recored success, recored file path is [ %s ]\n", getpid(),para.pfile);
+        apped_content(para.fpath,buff1);
+
+        is_excute_command(para.acomd, para.fpath, 0);//activity
+        //子进程循环监听
+        while (is_enable_run(para.ctypath)==1) {//
+//            apped_content(para.fpath, "@");
+            sleep(para.sleeptime);
+            is_excute_command(para.command, para.fpath, 1);//server
+//            apped_content(para.fpath, "#\t");
+        }
+    }else{
+        //父进程等待子进程完成
+        char res[35];
+        memset(res, 0, sizeof(buff));//清空
+        sprintf(res, "PID = %lu ,fork child progress pid = ( %lu ),exit!\n", getpid(),result);
+        save_content(para.ctypath,res);
+        exit(0);
+//        char res[35];
+//        memset(res, 0, sizeof(buff));//清空
+//        sprintf(res, "PID = %lu ,wait child progress pid = ( %lu )\n", getpid(),result);
+//        apped_content(para.ctypath,res);
+//        result=wait(NULL);
+//        memset(res, 0, sizeof(buff));//清空
+//        sprintf(res, "PID = %lu catch child ( %lu ) is kill.exit!\n", getpid(),result);
+//        apped_content(para.ctypath,res);
+    }
+
 }
 
 //转变对象
@@ -324,7 +439,6 @@ void tanslation_param(char *srvname, char *acty, char *sd, char *trl, char *tinf
     para.ctypath = trl;//控制
     para.fpath = tinf;//日志
     para.sleeptime = sleeptime;//休眠
-
     LOGE("服务命令=[%s]\n活动命令=[%s]\npid保存路径=[%s]\n控制文件=[%s]\n日志文件=[%s]\n休眠时间 = %d 毫秒",
          para.command,
          para.acomd,
@@ -332,12 +446,10 @@ void tanslation_param(char *srvname, char *acty, char *sd, char *trl, char *tinf
          para.ctypath,
          para.fpath,
          para.sleeptime);
-
     //初始化文件
     file_exist(para.pfile);//pid记录文本
     file_exist(para.ctypath);//创建控制文本
     file_exist(para.fpath);//日志打印文本
-
     mmain();
 }
 
@@ -436,7 +548,13 @@ save_content(CONTROL_FILE,"true");
 //    pthread_exit((void *)0);
 
 
-
+/* memset(buff, 0, sizeof(buff));//清空
+ sprintf(buff, "main progress goto sleep %d minute.\n", para.sleeptime);
+ apped_content(para.fpath,buff);
+ sleep(para.sleeptime);
+ apped_content(para.fpath," >>main progress sleep over!\n\n");
+*/
+//    mmain();
 
 //pthread_t tid;
 //    int ret;

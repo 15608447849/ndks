@@ -4,6 +4,7 @@ package com.lzp.ndks;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import com.wos.play.rootdir.model_monitor.soexcute.RunJniHelper;
@@ -22,6 +23,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
     }
     public void testOpen(View view){
+        Log.i("CLibs","打开监听进程");
         Intent i = new Intent(MainActivity.this,Servers.class);
         startService(i);
     }

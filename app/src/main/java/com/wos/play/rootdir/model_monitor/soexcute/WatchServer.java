@@ -1,12 +1,9 @@
 package com.wos.play.rootdir.model_monitor.soexcute;
 
-import android.app.IntentService;
 import android.app.Service;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.IntDef;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -19,6 +16,8 @@ public class WatchServer extends Service {
     public void onCreate() {
         super.onCreate();
         android.util.Log.i(TAG, "创建服务 - pid: "+android.os.Process.myPid());
+//        Intent i = new Intent(this,Servers.class);
+//        startService(i);
     }
     @Override
     public void onDestroy() {
@@ -34,7 +33,7 @@ public class WatchServer extends Service {
     public int onStartCommand(Intent intent,int flags, int startId) {
         Log.e(TAG,"["+android.os.Process.myPid()+"]= = = = = = = = = = 监听中　: " +startId);
 //        open();
-        return super.onStartCommand(intent, flags, startId);
+        return START_NOT_STICKY;//super.onStartCommand(intent, flags, startId);
     }
 
     private void open() {
