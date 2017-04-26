@@ -266,6 +266,9 @@ void excute_command_system(char *command) { //char* console,
 
 /**执行线程打开命令*/
 void thread_excute_command(char *fpath, char *command, void *funcation) {
+    if (strcmp("null", command) <= 0) {
+        return;
+    }
     apped_content(fpath, "# create thread \n");
     pthread_t tid;
     int ret;
@@ -280,13 +283,11 @@ void thread_excute_command(char *fpath, char *command, void *funcation) {
 
 
 void is_excute_command(char *command, char *logfile, int print) {
-
     if (strcmp("null", command) > 0) {
-
 //      thread_excute_command(para.fpath,para.acomd,excute_command_popen_new);
         excute_command_popen(command);
         if (print == 0) {
-            char buff[150];
+            char buff[100];
             memset(buff, 0, sizeof(buff));
             sprintf(buff, "excute command:\t%s\tsuccess.\n", command);//
             apped_content(logfile, buff);
@@ -321,112 +322,73 @@ void recored_pid(char* recredfile,char* logfile){
 void mmain() {
     int result = 0;
     kill_progress(para.pfile);//结束可能存在的进程
-//    clear_log_file(para.fpath);//清空日志
-    char buf[20];
-    memset(buf, 0, sizeof(buf));
-    sprintf(buf, "current process pid ( %lu ) , print log >>>\n", getpid());//
-    save_content(para.fpath, buf);//清空上一次的log
-
-    int cpid = fork();
-    LOGE("进程 pid[ %d ] => 创建子进程:[ %d ]", getpid(), cpid);
-    if (cpid < 0) {
-    LOGE("pid = %d 执行fork函数调用错误,退出程序.", getpid());
-    exit(1);
-    } else if (cpid > 0) {
-     LOGE("父进程( %d ),退出.", getpid());
-     exit(0);
-    } else if (cpid == 0) {
-     LOGE("当前子进程pid = %d ,准备脱离会话组 ...  \n\n", getpid());
-    }
-
-
-//    result = fork_self(0);//分裂1次
-//    if(result!=0)
-//        return;
-    //singnals();//忽略信号
-
-    //脱离进程组
-    char buff[20];
-    int spid = setsid();
-    memset(buff, 0, sizeof(buff));
-    sprintf(buff, "current process pid ( %lu ) ,ppid ( %lu ),setpid result = %d \n", getpid(),getppid(),spid);//
-    apped_content(para.fpath,buff);
-
-    if (spid < 0) {
-        exit(-1);
-    };
-    umask(0);
-    apped_content(para.fpath, "umask(0) success!\n");
-
-//    //关闭文件描述符
-//    if (close_all_fd() != 0) {
-//        //记录到日志文件
-//        apped_content(console, "close all file descriptor error!\n");
-//    } else {
-//        apped_content(console, "close all file descriptor success!\n");
-//    }
-
-//    tanslation_deams(para.fpath);
-    char str[30];
-    memset(str, 0, sizeof(str));//清空
-    sprintf(str, "current PID = %lu , this PPID = %lu ,read 2fork()...\n",getpid(),getppid());
-    apped_content(para.fpath,str);
-
-    //result = fork_self(1);//分裂第二次
-//    if(result<0)
-//        return;
-
+    //清空日志
+    char buffstr[100];
+    memset(buffstr, 0, sizeof(buffstr));
+    sprintf(buffstr, "current process pid ( %lu ) , clear log files,print log :\n", getpid());//
+    save_content(para.fpath, buffstr);//清空上一次的log
 
     result = fork();
-    if(result == 0){
-        chdir("/");
-        apped_content(para.fpath, "chdir(/) success!\n");
 
-        for (int i = 0; i < 3; i++)
+    if (result != 0) {
+        LOGE("父进程( %d ),退出.", getpid());
+        exit(0);
+    }else{
+        LOGE("子进程( %d ),父进程(%d),标识码(%d),组标识(%d),准备脱离会话组.", getpid(),getppid(),getuid(),getgid());
+    }
+    //脱离进程组
+    result = setsid();
+    memset(buffstr, 0, sizeof(buffstr));
+    sprintf(buffstr, "current process pid ( %lu ) ,ppid ( %lu ), uid ( %lu ),gid( %lu ) ,setpid result = %d .\n", getpid(),getppid(),getuid(),getgid(),result);//
+    apped_content(para.fpath,buffstr);
+
+    if (result < 0) {
+        exit(-1);
+    };
+    umask(0);//重设文件创建掩码
+    apped_content(para.fpath, "umask(0).\n");
+    result = fork();
+    if(result == 0){
+        LOGE("fork第二次,子进程( %d ),执行.", getpid());
+        //孙子进程
+        chdir("/");//更改目录
+        apped_content(para.fpath, "chdir(/).\n");
+        for (int i = 0; i < 5; i++)
         {
             close (i);
         }
-        apped_content(para.fpath, "close all file descriptor over!\n");
-
+        apped_content(para.fpath, "close all file descriptor.\n");
         int stdfd = open ("/dev/null", O_RDWR);
         dup2(stdfd, STDOUT_FILENO);
         dup2(stdfd, STDERR_FILENO);
-        apped_content(para.fpath, "singnal over!\n");
+        apped_content(para.fpath, "singnal over.\n");
 
         //记录本次pid
-        //recored_pid(para.pfile,para.fpath);
-        char buff1[35];
-        memset(buff1, 0, sizeof(buff1));
-        sprintf(buff1, "%lu", getpid());
-        save_content(para.pfile, buff1);//保存pid
 
-        memset(buff1, 0, sizeof(buff1));//清空
-        sprintf(buff1, "%d recored success, recored file path is [ %s ]\n", getpid(),para.pfile);
-        apped_content(para.fpath,buff1);
+        memset(buffstr, 0, sizeof(buffstr));
+        sprintf(buffstr, "%lu", getpid());
+        save_content(para.pfile, buffstr);//保存pid
+        //记录操作日志
+        memset(buffstr, 0, sizeof(buffstr));//清空
+        sprintf(buffstr, "%d recored success, recored file path :%s\n", getpid(),para.pfile);
+        apped_content(para.fpath,buffstr);
 
-        is_excute_command(para.acomd, para.fpath, 0);//activity
+        memset(buffstr, 0, sizeof(buffstr));
+        sprintf(buffstr, "current process pid ( %lu ) ,ppid ( %lu ), uid ( %lu ),gid( %lu ).\n", getpid(),getppid(),getuid(),getgid());//
+        apped_content(para.fpath,buffstr);
+
+        thread_excute_command(para.fpath,para.acomd,excute_command_popen);//activity
+        apped_content(para.fpath,"############################ start watch ###############################\n");
         //子进程循环监听
         while (is_enable_run(para.ctypath)==1) {//
-//            apped_content(para.fpath, "@");
             sleep(para.sleeptime);
             is_excute_command(para.command, para.fpath, 1);//server
-//            apped_content(para.fpath, "#\t");
         }
+        apped_content(para.fpath,"############################ stop watch ###############################\n");
     }else{
-        //父进程等待子进程完成
-        char res[35];
-        memset(res, 0, sizeof(buff));//清空
-        sprintf(res, "PID = %lu ,fork child progress pid = ( %lu ),exit!\n", getpid(),result);
-        save_content(para.ctypath,res);
+        //第二次fork 父进程
+        LOGE("fork第二次,父进程( %d ),退出.", getpid());
         exit(0);
-//        char res[35];
-//        memset(res, 0, sizeof(buff));//清空
-//        sprintf(res, "PID = %lu ,wait child progress pid = ( %lu )\n", getpid(),result);
-//        apped_content(para.ctypath,res);
-//        result=wait(NULL);
-//        memset(res, 0, sizeof(buff));//清空
-//        sprintf(res, "PID = %lu catch child ( %lu ) is kill.exit!\n", getpid(),result);
-//        apped_content(para.ctypath,res);
     }
 
 }
@@ -716,3 +678,10 @@ save_content(CONTROL_FILE,"true");
 //        lseek(fp, 0, SEEK_SET);
 //    }
 //    fclose(fp);//关闭文件流
+
+//    execlp("am", "am", "start", "--user","0","-a", "android.intent.action.VIEW","-d","http://www.baidu.com");
+//    execlp("am", "am", "startservice", "--user","0","-n", "com.lzp.ndks","com.wos.play.rootdir.model_monitor.soexcute.WatchServer");
+//    popen();
+//    system("am startservice --user 0 -n com.lzp.ndks/com.wos.play.rootdir.model_monitor.soexcute.WatchServer");
+//    system("am start --user 0 -a android.intent.action.VIEW -d  http://www.baidu.com");
+//  excute_command_popen(para.acomd);

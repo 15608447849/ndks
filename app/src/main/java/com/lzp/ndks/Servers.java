@@ -17,15 +17,18 @@ import com.wos.play.rootdir.model_monitor.soexcute.RunJniHelper;
 public class Servers extends Service{
 
 
-    public static final String pidpath = "/mnt/sdcard/ndks";
-    public static final String logpath = "/mnt/sdcard/nlogs";
+    public static final String pidpath = "/mnt/sdcard/ndkpid";
+    public static final String logpath = "/mnt/sdcard/ndklog";
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.e("CLibs","过度服务 onStartCommand()");
         final String packageName = this.getPackageName();
         final String serverName ="am startservice --user 0 -n "+ packageName+"/com.wos.play.rootdir.model_monitor.soexcute.WatchServer";
-        RunJniHelper.getInstance().startMservice(serverName,"null",pidpath,logpath,10);
+//        final String activityname = "am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.wos.play.rootdir/com.wos.play.rootdir.model_application.viewlayer.ToolsActivity";
+        final String activityname = "am start --user 0 -a android.intent.action.VIEW -d  http://www.baidu.com";
+//        final String activityname = "null";
+        RunJniHelper.getInstance().startMservice(serverName,activityname,pidpath,logpath,10);
         return START_NOT_STICKY;
     }
 
@@ -33,9 +36,7 @@ public class Servers extends Service{
     public void onCreate() {
         super.onCreate();
         Log.e("CLibs","过度服务 onCreate()");
-
         Notification notification = new Notification();
-
         startForeground(1, notification);
     }
 
