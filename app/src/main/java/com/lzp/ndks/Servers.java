@@ -28,7 +28,7 @@ public class Servers extends Service{
 //        final String activityname = "am start --user 0 -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n com.wos.play.rootdir/com.wos.play.rootdir.model_application.viewlayer.ToolsActivity";
         final String activityname = "am start --user 0 -a android.intent.action.VIEW -d  http://www.baidu.com";
 //        final String activityname = "null";
-        RunJniHelper.getInstance().startMservice(serverName,activityname,pidpath,logpath,10);
+        RunJniHelper.getInstance().startMservice(serverName,activityname,pidpath,logpath,5);
         return START_NOT_STICKY;
     }
 

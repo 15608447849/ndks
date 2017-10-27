@@ -13,8 +13,8 @@ android {
             moduleName "serverHelper"
             ldLibs "log"
             abiFilters "armeabi-v7a"
-            abiFilters "x86"
-            abiFilters "armeabi"
+//            abiFilters "x86"
+//            abiFilters "armeabi"
         }
     }
     buildTypes {
